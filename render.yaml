@@ -1,0 +1,37 @@
+# MOSN Safety API — always-on hosting blueprint for Render.
+# Deploy: New → Blueprint → connect this repo. Then set the secret env vars (sync:false) in the dashboard.
+services:
+  - type: web
+    name: mosn-safety-api
+    runtime: node
+    plan: starter            # $7/mo, always-on (no cold-start). Use "free" only with a keep-warm pinger.
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: API_BIND
+        value: 0.0.0.0
+      - key: X402_PUBLIC_URL
+        sync: false          # set to your Render URL, e.g. https://mosn-safety-api.onrender.com
+      - key: X402_PAY_TO
+        sync: false          # your vault: 4tGi5dJXt9nbR4aMvb8vFqpcQxqDJUHUo9TKsM9LM3k2
+      - key: BASE_PAY_TO
+        sync: false
+      - key: CDP_API_KEY_ID
+        sync: false
+      - key: CDP_API_KEY_SECRET
+        sync: false
+      - key: FACILITATOR_URL
+        value: https://facilitator.payai.network
+      - key: JUPITER_API_KEY
+        sync: false
+      - key: JUP_API_KEY
+        sync: false
+      - key: SOLANA_RPC_URL
+        sync: false
+      - key: SOLANA_RPC_FALLBACK
+        sync: false
+      - key: SOLANA_RPC_EXTRA
+        sync: false
+      - key: SOLANA_WALLET_PUBKEY
+        sync: false          # PUBLIC key only — never the secret
