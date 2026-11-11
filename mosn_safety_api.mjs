@@ -14,7 +14,7 @@ import { ExactSvmScheme } from '@x402/svm/exact/server';
 import { ExactEvmScheme } from '@x402/evm/exact/server';
 import { declareDiscoveryExtension } from '@x402/extensions/bazaar';
 import { holderConcentration, holderVerdict, pickBestPairs } from './mosn_signals.mjs';
-import { startKeyStore, spend, COST } from './mosn_apikeys.mjs'; // v3.3: prepaid keys bought with SOL
+import { startKeyStore, spend, COST, mintSubkey, PACKS } from './mosn_apikeys.mjs'; // v3.3: prepaid keys; v3.6: reseller
 
 const PORT = Number(process.env.PORT || process.env.X402_PORT || 4021); // Render/Railway inject PORT
 const PRICE = process.env.X402_PRICE || '$0.005';
@@ -472,6 +472,24 @@ app.get('/token-check', async (req, res, next) => {
 });
 app.get('/stats', (_q, res) => res.json({ service: 'MOSN Solana Data API', freeChecksServedThisRun: freeServed, paidSalesThisRun: sales, freePerDay: FREE_PER_DAY }));
 
+// v3.6: RESELLER endpoints — a key holder resells MOSN under their own brand/price. Their credits, their markup; MOSN never pays out.
+app.get('/reseller/status', (req, res) => {
+    const key = req.headers['x-mosn-key'] || req.query.key;
+    if (!key) return res.status(401).json({ error: 'Send your reseller key as header x-mosn-key (or ?key=)' });
+    const chk = spend(String(key), 0); // 0-cost = balance check
+    if (!chk.ok) return res.status(402).json({ error: chk.why });
+    res.json({ creditsLeft: chk.left, costPerCall: COST, packs: PACKS, mint: `${PUBLIC_URL}/reseller/mint?credits=<n>` });
+});
+app.get('/reseller/mint', (req, res) => {
+    const key = req.headers['x-mosn-key'] || req.query.key;
+    if (!key) return res.status(401).json({ error: 'Send your reseller key as header x-mosn-key (or ?key=)' });
+    const credits = Math.floor(Number(req.query.credits) || 0);
+    if (credits < 1) return res.status(400).json({ error: 'Pass ?credits=<how many checks to load on the new sub-key>' });
+    const r = mintSubkey(String(key), credits);
+    if (!r.ok) return res.status(402).json({ error: r.why });
+    console.log(`[${new Date().toLocaleTimeString()}] [RESELLER] 🪙 minted sub-key (${credits} credits; ${r.resellerLeft} left on reseller key)`);
+    res.json({ subKey: r.subKey, credits: r.credits, yourCreditsLeft: r.resellerLeft, howToUse: 'Your customer calls the API with header x-mosn-key: <subKey>. Costs per call: token-check 1, holders 1, new-pools 2, alpha 10, dataset 50.' });
+});
 app.use(paymentMiddleware(routes, resourceServer));
 
 let sales = 0;
