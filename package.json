@@ -2,9 +2,13 @@
   "name": "mosn-safety-api",
   "version": "1.0.0",
   "type": "module",
-  "description": "MOSN — pay-per-call Solana token rug/honeypot safety API for AI agents (x402).",
-  "engines": { "node": ">=20" },
-  "scripts": { "start": "node mosn_safety_api.mjs" },
+  "description": "MOSN \u2014 pay-per-call Solana token rug/honeypot safety API for AI agents (x402).",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node mosn_safety_api.mjs"
+  },
   "dependencies": {
     "express": "5.3.0",
     "axios": "1.20.0",
@@ -16,6 +20,7 @@
     "@x402/express": "2.28.0",
     "@x402/extensions": "2.28.0",
     "@x402/svm": "2.28.0",
-    "@coinbase/x402": "2.1.0"
+    "@coinbase/x402": "2.1.0",
+    "@coinbase/cdp-sdk": "1.60.0"
   }
 }
