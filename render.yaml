@@ -4,7 +4,7 @@ services:
   - type: web
     name: mosn-safety-api
     runtime: node
-    plan: starter            # $7/mo, always-on (no cold-start). Use "free" only with a keep-warm pinger.
+    plan: free               # start free to validate demand for $0; upgrade to "starter" ($7, always-on) once agents actually call it.
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /
