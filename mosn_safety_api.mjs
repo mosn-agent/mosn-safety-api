@@ -295,13 +295,15 @@ app.get('/openapi.json', (_q, res) => res.json({
     }
 }));
 app.use('/holders', (req, res, next) => {
-    try { new PublicKey(String(req.query.mint || '')); next(); }
-    catch { res.status(400).json({ error: 'Pass ?mint=<valid Solana token mint address>' }); }
+    const creds = req.headers['payment-signature'] || req.headers['x-payment'] || req.headers['x-mosn-key'] || req.query.key;
+    try { new PublicKey(String(req.query.mint || '')); return next(); }
+    catch { return creds ? res.status(400).json({ error: 'Pass ?mint=<valid Solana token mint address>' }) : next(); }
 });
-// validate input BEFORE charging anyone
+// validate input BEFORE charging anyone — but let an UNPAID x402 discovery probe (no mint) reach the 402 challenge, so the Bazaar can read our payment metadata
 app.use('/token-check', (req, res, next) => {
-    try { new PublicKey(String(req.query.mint || '')); next(); }
-    catch { res.status(400).json({ error: 'Pass ?mint=<valid Solana token mint address>' }); }
+    const creds = req.headers['payment-signature'] || req.headers['x-payment'] || req.headers['x-mosn-key'] || req.query.key;
+    try { new PublicKey(String(req.query.mint || '')); return next(); }
+    catch { return creds ? res.status(400).json({ error: 'Pass ?mint=<valid Solana token mint address>' }) : next(); }
 });
 // log rejected payments with the reason, so problems are visible in mosn_api.log
 app.use(['/token-check', '/new-pools', '/holders', '/alpha', '/dataset'], (req, res, next) => {
@@ -453,6 +455,7 @@ const freeUse = new Map(); // caller → { day, n }
 let freeServed = 0;
 app.get('/token-check', async (req, res, next) => {
     if (req.headers['payment-signature'] || req.headers['x-payment']) return next(); // paying → normal paid path
+    try { new PublicKey(String(req.query.mint || '')); } catch { return next(); } // no valid mint → let the x402 layer answer (402 discovery probe)
     const who = callerOf(req), day = new Date().toISOString().slice(0, 10);
     const u = freeUse.get(who), n = u && u.day === day ? u.n : 0;
     if (n >= FREE_PER_DAY) return next(); // quota used → 402 payment challenge
