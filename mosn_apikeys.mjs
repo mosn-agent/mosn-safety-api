@@ -7,7 +7,8 @@ import crypto from 'crypto';
 
 export const PACKS = [
     { id: 'starter', sol: 0.05, credits: 2_000, label: '2,000 checks' },
-    { id: 'pro', sol: 0.4, credits: 20_000, label: '20,000 checks' }
+    { id: 'pro', sol: 0.4, credits: 20_000, label: '20,000 checks' },
+    { id: 'reseller', sol: 1.5, credits: 120_000, label: '120,000 checks (reseller — resell to your own users at your price)' }
 ];
 export const COST = { '/token-check': 1, '/holders': 1, '/new-pools': 2, '/alpha': 10, '/dataset': 50 };
 const GRANTS = './api_key_grants.jsonl', STORE = './api_keys.json';
@@ -66,4 +67,25 @@ export function spend(key, cost) {
     if (k.credits < cost) return { ok: false, why: `out of credits (${k.credits} left, this call needs ${cost})` };
     k.credits -= cost; k.used = (k.used || 0) + cost; dirty = true;
     return { ok: true, left: k.credits };
+}
+
+// v3.6: RESELLER — split `credits` off an existing key into a brand-new independent sub-key you can hand to a customer.
+// Uses only the vetted spend() + grantCredits() primitives: it MOVES credits, never mints value, so it can't corrupt balances.
+export function mintSubkey(parentKey, credits) {
+    credits = Math.floor(Number(credits) || 0);
+    if (credits < 1) return { ok: false, why: 'credits must be >= 1' };
+    ingest();
+    const pk = store.keys[hashKey(parentKey)];
+    if (!pk) return { ok: false, why: 'unknown reseller key' };
+    const parentUid = pk.uid;
+    const d = spend(parentKey, credits);              // debit the reseller first (checks balance)
+    if (!d.ok) return { ok: false, why: d.why };
+    try {
+        const uid = 'sub_' + crypto.randomBytes(9).toString('hex');
+        const g = grantCredits(uid, credits);         // fresh sub-key credited with those checks
+        return { ok: true, subKey: g.key, credits, resellerLeft: d.left, subUid: uid };
+    } catch (e) {
+        try { grantCredits(parentUid, credits); } catch (_) {} // refund the reseller if the grant failed
+        return { ok: false, why: 'mint failed (refunded): ' + String(e.message).slice(0, 80) };
+    }
 }
