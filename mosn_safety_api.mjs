@@ -8,7 +8,7 @@ import axios from 'axios';
 import bs58 from 'bs58';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { getMint, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, getExtensionTypes, ExtensionType, getTransferFeeConfig, getAssociatedTokenAddressSync } from '@solana/spl-token';
-import { paymentMiddleware } from '@x402/express';
+import { paymentMiddleware, paymentMiddlewareFromHTTPServer } from '@x402/express';
 import { x402ResourceServer, HTTPFacilitatorClient } from '@x402/core/server';
 import { ExactSvmScheme } from '@x402/svm/exact/server';
 import { ExactEvmScheme } from '@x402/evm/exact/server';
@@ -250,6 +250,7 @@ const routes = {
 };
 
 const app = express();
+app.set('trust proxy', true); // honor Render's X-Forwarded-* so CDP-derived x402 resource URLs are https + correct host
 app.get('/', (_q, res) => res.json({ service: 'MOSN Solana Data API', tryFree: `${PUBLIC_URL}/token-check?mint=<SOLANA_MINT> — ${Number(process.env.API_FREE_PER_DAY || 5)} free checks per day, no payment or signup`, paidRoutes: menu(), payWith: BASE_PAY_TO ? 'USDC on Solana or Base (x402)' : 'USDC on Solana (x402)', docs: `${PUBLIC_URL}/openapi.json` }));
 app.get('/health', (_q, res) => res.json({ ok: true }));
 // v2: machine-readable menu so agents and directories can find every paid route
@@ -661,5 +662,36 @@ app.listen(PORT, process.env.API_BIND || '0.0.0.0', () => { // host deploy binds
     console.log(`MOSN Solana Data API v2 on port ${PORT} | routes: /token-check ${PRICE}, /new-pools ${PRICE_POOLS}, /holders ${PRICE_HOLDERS}, /alpha ${PRICE_ALPHA}, /dataset ${PRICE_DATASET}, /safe-swap free (+${SWAP_FEE_BPS / 100}% fee) | pay to ${payTo}${BASE_PAY_TO ? ' (Solana) + ' + BASE_PAY_TO + ' (Base)' : ''} | public URL: ${PUBLIC_URL}`);
     phone(`💰 MOSN paid API v2 is live — 3 paid routes (token check, new pools, holders), USDC on Solana${BASE_PAY_TO ? ' or Base' : ''}\n${PUBLIC_URL}`);
 });
+
+// ── CDP x402 BAZAAR ROUTE (ADDITIVE v3.5) ─────────────────────────────────────────────────────────────
+// A SECOND, parallel payment avenue powered by Coinbase's own createX402Server. It auto-attaches the Bazaar
+// discovery + builder-code extensions on settlement (EVM/Base especially), so paid calls on THIS route get
+// MOSN listed in the Coinbase x402 Bazaar. It does NOT touch the existing /token-check, free tier, prepaid
+// keys, or the PayAI layer — it is a brand-new /x402/* path. Uses MOSN's existing vault addresses (no new
+// wallet, no new secret). Mounted AFTER app.listen + guarded + timed out, so it can never delay/crash boot.
+try {
+    if (process.env.CDP_API_KEY_ID && process.env.CDP_API_KEY_SECRET && process.env.ENABLE_CDP_BAZAAR !== '0') {
+        const { createX402Server } = await import('@coinbase/cdp-sdk/x402'); // dynamic: a missing module degrades gracefully, never crashes boot
+        const cdpRoutes = {
+            'GET /x402/token-check': {
+                price: PRICE,
+                description: 'Solana token rug/safety check: mint & freeze authority, dangerous Token-2022 settings, real-wallet holder concentration (pools excluded), sell-route round-trip test, live buy/sell flow. Verdict SAFE/CAUTION/DANGER with reasons.',
+                networks: [...(BASE_PAY_TO ? [BASE_NETWORK] : []), NETWORK], // Base first (Bazaar auto-indexes EVM), Solana too
+            },
+        };
+        const cdpBazaar = await Promise.race([
+            createX402Server({ routes: cdpRoutes, payToConfig: { type: 'address', ...(BASE_PAY_TO ? { evm: BASE_PAY_TO } : {}), solana: payTo } }),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('createX402Server timeout')), 20000)),
+        ]);
+        app.use(paymentMiddlewareFromHTTPServer(cdpBazaar));
+        app.get('/x402/token-check', async (req, res) => {
+            try { res.json(await tokenCheck(String(req.query.mint))); }
+            catch (e) { res.status(400).json({ error: String(e.message).slice(0, 120) }); }
+        });
+        console.log(`[${new Date().toLocaleTimeString()}] [CDP_BAZAAR] \u2705 indexed route live: ${PUBLIC_URL}/x402/token-check (${BASE_PAY_TO ? 'Base + ' : ''}Solana)`);
+    } else {
+        console.log(`[${new Date().toLocaleTimeString()}] [CDP_BAZAAR] skipped (no CDP keys or disabled)`);
+    }
+} catch (e) { console.log(`[${new Date().toLocaleTimeString()}] [CDP_BAZAAR] \u26a0\ufe0f not enabled: ${String(e.message).slice(0, 160)}`); }
 
 export { verdict, tokenCheck };
