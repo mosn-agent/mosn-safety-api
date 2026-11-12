@@ -178,7 +178,7 @@ const example = { mint: 'So11111111111111111111111111111111111111112', verdict: 
 const routes = {
     'GET /token-check': {
         accepts: acceptsFor(PRICE),
-        description: 'Solana token rug/safety check: mint & freeze authority, dangerous Token-2022 settings, real-wallet holder concentration (pools excluded), sell-route round-trip test, live buy/sell flow. Verdict SAFE/CAUTION/DANGER with reasons. First 5 checks per day are FREE (no payment, no signup).',
+        description: 'Use when about to buy, swap, or approve a Solana token and you must first know whether it is a rug, a honeypot, or cannot be sold. Solana token rug/safety check: mint & freeze authority, dangerous Token-2022 settings, real-wallet holder concentration (pools excluded), sell-route round-trip test, live buy/sell flow. Verdict SAFE/CAUTION/DANGER with reasons. First 5 checks per day are FREE (no payment, no signup).',
         mimeType: 'application/json',
         // this x402 version wants the address as a plain string, with name/tags as their own fields
         resource: `${PUBLIC_URL}/token-check`,
@@ -197,7 +197,7 @@ const routes = {
     },
     'GET /new-pools': {
         accepts: acceptsFor(PRICE_POOLS),
-        description: 'Brand-new Solana pools (PumpSwap + Raydium CPMM) detected in real time from on-chain pool-creation logs, newest first, with live liquidity/volume/price change where DEX data exists. Optional ?minutes=1-120 (default 15).',
+        description: 'Use when you need Solana pools the moment they launch (PumpSwap/Raydium), for snipers and early-entry bots. Brand-new Solana pools (PumpSwap + Raydium CPMM) detected in real time from on-chain pool-creation logs, newest first, with live liquidity/volume/price change where DEX data exists. Optional ?minutes=1-120 (default 15).',
         mimeType: 'application/json',
         resource: `${PUBLIC_URL}/new-pools`,
         serviceName: 'MOSN New Solana Pools',
@@ -210,7 +210,7 @@ const routes = {
     },
     'GET /alpha': {
         accepts: acceptsFor(PRICE_ALPHA),
-        description: 'Fresh Solana alpha: up to 10 brand-new tokens MOSN screened in the last 5-120 minutes (default 30) that PASSED its rug/scam check, real-wallet holder check and buy/sell-flow filters — with MOSN AI verdict, confidence and reason, plus live price/liquidity/flow now.',
+        description: 'Use when you want a ready short-list of brand-new Solana tokens that already passed safety and flow screening, instead of scanning raw launches yourself. Fresh Solana alpha: up to 10 brand-new tokens MOSN screened in the last 5-120 minutes (default 30) that PASSED its rug/scam check, real-wallet holder check and buy/sell-flow filters — with MOSN AI verdict, confidence and reason, plus live price/liquidity/flow now.',
         mimeType: 'application/json',
         resource: `${PUBLIC_URL}/alpha`,
         serviceName: 'MOSN Fresh Solana Alpha',
@@ -223,7 +223,7 @@ const routes = {
     },
     'GET /dataset': {
         accepts: acceptsFor(PRICE_DATASET),
-        description: 'Labeled Solana new-token dataset: every fresh token MOSN screened in the last 1-72 hours (default 24) — liquidity, volume, flow, holder concentration, age, socials, AI verdict — joined with its price change 5/10/15 minutes later. Up to 2000 rows of JSON. For training and backtesting memecoin models.',
+        description: 'Use when training or backtesting a memecoin model and you need labeled new-token data with real forward price outcomes. Labeled Solana new-token dataset: every fresh token MOSN screened in the last 1-72 hours (default 24) — liquidity, volume, flow, holder concentration, age, socials, AI verdict — joined with its price change 5/10/15 minutes later. Up to 2000 rows of JSON. For training and backtesting memecoin models.',
         mimeType: 'application/json',
         resource: `${PUBLIC_URL}/dataset`,
         serviceName: 'MOSN Labeled Memecoin Dataset',
@@ -236,7 +236,7 @@ const routes = {
     },
     'GET /holders': {
         accepts: acceptsFor(PRICE_HOLDERS),
-        description: 'Solana token holder concentration from REAL wallets only (liquidity pools and program accounts excluded): top wallet %, top-10 %, whale/insider flag.',
+        description: 'Use when you need to know whether a Solana token is whale- or insider-concentrated, counting real wallets only (pools excluded). Solana token holder concentration from REAL wallets only (liquidity pools and program accounts excluded): top wallet %, top-10 %, whale/insider flag.',
         mimeType: 'application/json',
         resource: `${PUBLIC_URL}/holders`,
         serviceName: 'MOSN Holder Check',
